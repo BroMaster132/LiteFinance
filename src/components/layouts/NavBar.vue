@@ -1,7 +1,7 @@
 <template>
-    <Menubar :model="items">
+    <Menubar   :model="items" pt:root:class="!bg-transparent !border-0 !shadow-none">
         <template #start>
-            <img src="/src/assets/icon.png" alt="LiteFinance" class="mr-2" style="height: 4rem;" />
+            <img src="/src/components/icons/icon.png" alt="LiteFinance" class="mr-2" style="height: 4rem;" />
         </template>
         <template #item="{ item, props, hasSubmenu, root }">
             <a v-ripple class="flex items-center" v-bind="props.action">
@@ -12,19 +12,19 @@
             </a>
         </template>
         <template #end>
-            <div class="flex items-center gap-2">
-                <Button label="Sign in / Sign up"/>
-            </div>
+            <Logs />
         </template>
-</Menubar>
+    </Menubar>
 </template>
 
 <script setup>
 import Menubar from 'primevue/menubar';
 import Badge from 'primevue/badge';
-import Button from 'primevue/button';
+import Logs from '../Logs.vue';
+
 
 import { ref } from "vue";
+
 
 const items = ref([
     {
@@ -40,22 +40,19 @@ const items = ref([
 
 </script>
 <style scoped>
-:deep(.p-menubar-root-list) {
-    background-color: var(--vwa-c-bg-1);
-    position: relative;
-    left: 250px;
-    font-size: 15pt;
-}
-.p-menubar {
-    box-shadow: none;
-    border: none;
-    padding: 0;
-    background-color: var(--vwa-c-bg-1);
-}   
 :deep(.p-menubar-start) {
-    margin-left: 200px;
+    margin-left: 100px;
 }
 :deep(.p-menubar-end) {
-    margin-right: 50px;
+    margin-right: 100px;
 }
+:deep(.p-menubar) {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+}
+:deep(.p-menubar-root-list) {
+    margin-left: auto;
+}
+
 </style>

@@ -7,6 +7,7 @@ import router from './router';
 import PrimeVue from 'primevue/config';
 import Aura from '@primeuix/themes/aura';
 
+import ToastService from 'primevue/toastservice';
 // База стилей + иконки
 import '@primeuix/styled';
 import 'primeicons/primeicons.css';
@@ -24,4 +25,6 @@ app.use(PrimeVue, {
 });
 
 app.use(router);
+app.use(ToastService);
+
 app.mount('#app');
