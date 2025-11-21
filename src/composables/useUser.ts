@@ -153,17 +153,7 @@ export const useUser = () => {
     removeFromLocalStorage()
   }
 
-  function addFavourite(id: number){
-    try {
-        
-        userToObject.value?.favourites.push({
-          id: id,
-        }); 
-      
-    } catch (error) {
-      console.error(error);
-    }
-  }
+
   async function createUser(email: string, password: string) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);

@@ -77,7 +77,12 @@ const register = (email, password) => {
     console.log(email,password);
     
     createUser(email, password);
-    toast.add({ severity: 'success', summary: 'success', detail: 'Succesfully registrated', life: 3000 });
+    visible1.value = false;
+    setTimeout(() => {
+        toast.add({ severity: 'success', summary: 'success', detail: 'Succesfully registrated', life: 3000 });
+
+        
+    }, 1000);
 };
 
 const close = () => {
@@ -87,7 +92,7 @@ const close = () => {
 
 const login = (email, password) => {
     console.log(user.value);
-    
+    visible.value = false;
     loginUser(email, password);
     toast.add({ severity: 'success', summary: 'success', detail: 'Succesfully logged in', life: 3000 });
 };
