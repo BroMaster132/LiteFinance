@@ -42,9 +42,13 @@
       </div>
     </div>
   </section>
+  <div>
+    <MyExpenses />
+  </div>
 </template>
 
 <script setup>
+import MyExpenses from './MyExpenses.vue';
 const features = [
   {
     icon: '📊',

@@ -188,7 +188,6 @@ export const useUser = () => {
     addToLocalStorage,
     getUserFromLocalStorage,
     removeFromLocalStorage,
-    addFavourite,
     createUser,
     loginUser
   }

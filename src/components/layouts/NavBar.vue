@@ -1,5 +1,5 @@
 <template>
-    <Menubar   :model="items" pt:root:class="!bg-transparent !border-0 !shadow-none">
+    <Menubar   :model="items" pt:root:class="bg-transparent !border-0 !shadow-none">
         <template #start>
             <img src="/src/components/icons/icon.png" alt="LiteFinance" class="mr-2" style="height: 4rem;" />
         </template>
@@ -47,7 +47,7 @@ const items = ref([
     margin-right: 100px;
 }
 :deep(.p-menubar) {
-  background-color: transparent;
+  background-color: black;
   border: none;
   box-shadow: none;
 }

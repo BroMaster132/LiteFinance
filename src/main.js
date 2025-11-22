@@ -17,7 +17,6 @@ const app = createApp(App);
 app.use(PrimeVue, {
     theme: {
         preset: Aura,
-        // options не обязательно, можно оставить по умолчанию
         // options: {
         //   darkModeSelector: 'system',
         // }
