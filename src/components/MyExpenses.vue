@@ -5,15 +5,7 @@
         <span>MY EXPENSES</span>
 
         <div class="period-tabs">
-          <Button
-            v-for="period in periods"
-            :key="period.value"
-            :label="period.label"
-            variant="text"
-            size="small"
-            :class="['period-btn', { 'is-active': activePeriod === period.value }]"
-            @click="activePeriod = period.value"
-          />
+          <Button  v-for="period in periods"  :key="period.value"  :label="period.label"  variant="text"  size="small"  :class="['period-btn', { 'is-active': activePeriod === period.value }]"  @click="activePeriod = period.value"/>
         </div>
       </div>
     </template>
@@ -23,12 +15,7 @@
         <!-- LEFT: donut + legend -->
         <div class="left">
           <div class="chart-wrapper">
-            <Chart
-              type="doughnut"
-              :data="chartData"
-              :options="chartOptions"
-              class="donut-chart"
-            />
+            <Chart  type="doughnut"  :data="chartData"  :options="chartOptions"  class="donut-chart"/>
           </div>
 
           <ul class="legend">
@@ -45,12 +32,7 @@
         <div class="right">
           <div class="latest">
             <h3>Latest Expenses</h3>
-
-            <div
-              v-for="row in latestExpenses"
-              :key="row.label"
-              class="expense-row"
-            >
+            <div  v-for="row in latestExpenses"  :key="row.label"  class="expense-row">
               <span>{{ row.icon }} <strong>{{ row.label }}</strong></span>
               <span class="amount">{{ row.amount }} ₸</span>
             </div>
@@ -64,25 +46,10 @@
           </div>
 
           <div class="actions">
-            <Button
-              label="Add Expenses"
-              class="add-btn"
-              size="large"
-            />
-
+            <Button  label="Add Expenses"  class="add-btn"  size="large"/>
             <div class="small-actions">
-              <Button
-                label="Take photo of receipt"
-                icon="pi pi-camera"
-                size="small"
-                variant="outlined"
-              />
-              <Button
-                label="Upload image of receipt"
-                icon="pi pi-upload"
-                size="small"
-                variant="outlined"
-              />
+              <Button  label="Take photo of receipt"  icon="pi pi-camera"  size="small"  variant="outlined"/>
+              <Button  label="Upload image of receipt"  icon="pi pi-upload"  size="small"  variant="outlined"/>
             </div>
           </div>
         </div>
@@ -218,7 +185,7 @@ const chartOptions = {
   margin: 0 auto;
   border-radius: 28px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
-  background-color: #ffffff;
+  background-color: aliceblue ;
   color: #000;
 }
 .header {

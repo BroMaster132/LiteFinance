@@ -4,23 +4,15 @@
       <!-- Left content -->
       <div class="hero-left">
         <p class="hero-eyebrow">Smart control of your money starts here.</p>
-
         <h1 class="hero-title">
           Track every <span class="highlight">cent</span>,<br />
           Shape your <span class="highlight">future</span>.
         </h1>
         <br />
         <br />
-
         <ul class="feature-list">
-          <li
-            v-for="feature in features"
-            :key="feature.title"
-            class="feature-card"
-          >
-            <div class="feature-icon">
-              {{ feature.icon }}
-            </div>
+          <li  v-for="feature in features"  :key="feature.title"  class="feature-card">
+            <div class="feature-icon">  {{ feature.icon }}</div>
             <div class="feature-text">
               <h3>{{ feature.title }}</h3>
               <p>{{ feature.text }}</p>
@@ -28,21 +20,14 @@
           </li>
         </ul>
       </div>
-
-      <!-- Right phone mockup -->
       <div class="hero-right">
         <div class="phone-frame">
-          <!-- Replace src with your PNG path -->
-          <img
-            src="@/assets/img_phone.png"
-            alt="App preview"
-            class="phone-image"
-          />
+          <img  src="@/assets/img_phone.png"  alt="App preview"  class="phone-image"/>
         </div>
       </div>
     </div>
   </section>
-  <div>
+  <div class="expenses">
     <MyExpenses />
   </div>
 </template>
@@ -70,6 +55,9 @@ const features = [
 </script>
 
 <style scoped>
+.expenses {
+  height: 600px;
+}
 .hero {
   background-color: #f9fafb;
   color: #111827;
