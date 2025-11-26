@@ -97,6 +97,7 @@ import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Chart from 'primevue/chart'
 
+
 /* Available periods */
 const periods = [
   { label: 'Day', value: 'day' },
