@@ -64,7 +64,7 @@ export const useUser = () => {
         console.error(error)
       })
   }
-  
+
   async function addUserToMainDatabase() {
     loading.value.user = true
     try {
@@ -154,27 +154,77 @@ export const useUser = () => {
   }
 
 
-  async function createUser(email: string, password: string) {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      user.value = userCredential.user;
-      // добавляем в локал сторадж
-      addToLocalStorage();
-    } catch (error) {
-      console.error(error);
-    }
+async function createUser(email: string, password: string) {
+  // 1. Валидация email (синтаксис)
+  const emailRegex =
+    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
+
+  if (!emailRegex.test(email)) {
+    const error: any = new Error('Invalid email format');
+    error.code = 'custom/invalid-email-format';
+    throw error;
   }
 
-  async function loginUser(email: string, password: string) {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      user.value = userCredential.user;
-      // добавляем в локал сторадж
-      addToLocalStorage();
-    } catch (error) {
-      console.error(error);
-    }
+  // 2. Валидация пароля по политике Firebase (скрин)
+  const errors: string[] = [];
+
+  if (password.length < 6) {
+    errors.push('at least 6 characters');
   }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('an uppercase letter');
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('a lowercase letter');
+  }
+
+  if (errors.length > 0) {
+    const error: any = new Error('Password does not meet requirements');
+    error.code = 'custom/weak-password';
+    error.details = errors;
+    throw error;
+  }
+
+  // 3. Создание пользователя в Firebase Auth
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    user.value = userCredential.user;
+    addToLocalStorage();
+  } catch (error) {
+    // auth/email-already-in-use и т.п. пойдут выше
+    throw error;
+  }
+}
+
+
+async function loginUser(email: string, password: string) {
+
+  // Проверка email синтаксиса
+  const emailRegex =
+    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
+
+  if (!emailRegex.test(email)) {
+    const error: any = new Error("Invalid email format");
+    error.code = "custom/invalid-email-format";
+    throw error;
+  }
+
+  if (!password) {
+    const error: any = new Error("Password is required");
+    error.code = "custom/empty-password";
+    throw error;
+  }
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    user.value = userCredential.user;
+    addToLocalStorage();
+  } catch (error: any) {
+    throw error; // пробрасываем в компонент
+  }
+}
+
+
 
 
   return {

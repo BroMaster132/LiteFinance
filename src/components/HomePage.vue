@@ -1,5 +1,5 @@
 <template>
-  <section class="hero">
+  <section  class="hero">
     <div class="hero-inner">
       <!-- Left content -->
       <div class="hero-left">

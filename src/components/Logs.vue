@@ -1,6 +1,8 @@
 <template>
+    <Toast />
     <Button v-if="!user" label="Log in" icon="pi pi-user" @click="visible = true" class="soft-pill"/>
     <Button v-if="!user" label="Sign Up" class="soft-pill" @click="visible1 = true"  />
+
     <div v-else class="flex items-center gap-2">
         <img :src="user.photoURL" alt="user-icon" width="30px" />
         <span>{{ user.email }}</span>
@@ -44,7 +46,14 @@
           <p class="auth-title">Sign up</p>
 
           <div class="auth-field">
-            <InputText  id="email"  placeholder="Email"  v-model="email"  class="auth-input"/>
+            <Form v-slot="$form" :resolver="emailResolver" :initialValues="initialValues"  @submit="onFormSubmit"  >
+              <div class="flex flex-col gap-1">
+                  <InputText  id="email" name="password"  placeholder="Email"  v-model="email"  class="auth-input"/>
+                  <template  v-if="$form.password?.invalid">
+                        <Message v-for="(error, index) of $form.password.errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
+                    </template>
+                </div>
+            </Form>
           </div>
 
           <div class="auth-field">
@@ -58,10 +67,10 @@
             </Form>
           </div>
 
+
           <div class="auth-actions">
-            <Toast />
             <Button label="Create account"  @click="register(email, password)"  class="auth-btn-primary"/>
-            <Button label="Cancel" class="auth-cancel"  @click="closeCallback" />
+            <Button label="Cancel" class="auth-cancel"  @click="close()" />
           </div>
         </div>
       </template>
@@ -93,47 +102,182 @@ const { user, googleLogout, googleRegister, createUser, loginUser } = useUser()
 
 const visible = ref(false);
 const visible1 = ref(false);
-const register = (email, password) => {
-    console.log(email,password);
 
-    createUser(email, password);
+
+const register = async (email, password) => {
+  try {
+    await createUser(email, password);
+
     visible1.value = false;
-    setTimeout(() => {
-        toast.add({ severity: 'success', summary: 'success', detail: 'Succesfully registrated', life: 3000 });
 
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Successfully registered',
+      life: 3000
+    });
+  } catch (error) {
+    if (error.code === 'custom/invalid-email-format') {
+      toast.add({
+        severity: 'error',
+        summary: 'Invalid email',
+        detail: 'Email format is incorrect',
+        life: 3000
+      });
+      return;
+    }
 
-    }, 1000);
+    if (error.code === 'custom/weak-password') {
+      const details = Array.isArray(error.details)
+        ? error.details.join(', ')
+        : 'at least 6 characters, an uppercase and a lowercase letter';
+
+      toast.add({
+        severity: 'error',
+        summary: 'Weak password',
+        detail: `Password must contain ${details}.`,
+        life: 3000
+      });
+      return;
+    }
+
+    if (error.code === 'auth/email-already-in-use') {
+      toast.add({
+        severity: 'warn',
+        summary: 'Email in use',
+        detail: 'This email is already registered',
+        life: 3000
+      });
+      return;
+    }
+
+    toast.add({
+      severity: 'error',
+      summary: 'Registration error',
+      detail: error.message || 'Unknown error',
+      life: 3000
+    });
+  }
 };
+
+
+
 
 const close = () => {
     toast.add({ severity: 'info', summary: 'Info', detail: 'Registration cancelled', life: 3000 });
     visible1.value = false;
 };
 
-const login = (email, password) => {
+const login = async (email, password) => {
+  try {
+    await loginUser(email, password);
+
     visible.value = false;
-    loginUser(email, password);
-    toast.add({ severity: 'success', summary: 'success', detail: 'Succesfully logged in', life: 3000 });
+
+    toast.add({
+      severity: "success",
+      summary: "Success",
+      detail: "Successfully logged in",
+      life: 3000
+    });
+
+  } catch (error) {
+    console.log("LOGIN ERROR:", error.code);
+
+    // неправильный формат email
+    if (error.code === "custom/invalid-email-format") {
+      toast.add({
+        severity: "error",
+        summary: "Invalid email",
+        detail: "Email format is incorrect",
+        life: 3000
+      });
+      return;
+    }
+
+    // пустой пароль
+    if (error.code === "custom/empty-password") {
+      toast.add({
+        severity: "error",
+        summary: "Password required",
+        detail: "Please enter password",
+        life: 3000
+      });
+      return;
+    }
+
+    // учетная запись не найдена
+    if (error.code === "auth/user-not-found") {
+      toast.add({
+        severity: "error",
+        summary: "User not found",
+        detail: "No account with this email",
+        life: 3000
+      });
+      return;
+    }
+
+    // неверный пароль или ошибка Firebase v10+
+    if (
+      error.code === "auth/wrong-password" ||
+      error.code === "auth/invalid-credential"
+    ) {
+      toast.add({
+        severity: "error",
+        summary: "Wrong password",
+        detail: "Password is incorrect",
+        life: 3000
+      });
+      return;
+    }
+
+    // слишком много попыток
+    if (error.code === "auth/too-many-requests") {
+      toast.add({
+        severity: "warn",
+        summary: "Too many attempts",
+        detail: "Try again later",
+        life: 3000
+      });
+      return;
+    }
+
+    // fallback
+    toast.add({
+      severity: "error",
+      summary: "Login error",
+      detail: error.message || "Unknown error",
+      life: 3000
+    });
+  }
 };
+
+
+
 
 
 const initialValues = ref({
     password: ''
 });
+const emailResolver = ref(zodResolver(
+    z.object({
+        password: z
+            .string()
+            .refine((value) =>
+    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/.test(value),
+  { message: 'Invalid email format' }  )
+    })
+));
 const resolver = ref(zodResolver(
     z.object({
         password: z
             .string()
-            .min(3, { message: 'Minimum 3 characters.' })
-            .max(8, { message: 'Maximum 8 characters.' })
+            .min(6, { message: 'Minimum 6 characters.' })
             .refine((value) => /[a-z]/.test(value), {
                 message: 'Must have a lowercase letter.'
             })
             .refine((value) => /[A-Z]/.test(value), {
                 message: 'Must have an uppercase letter.'
-            })
-            .refine((value) => /d/.test(value), {
-                message: 'Must have a number.'
             })
     })
 ));
