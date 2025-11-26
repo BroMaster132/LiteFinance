@@ -19,7 +19,7 @@
 
           <div class="auth-field">
             <InputText  id="password"  placeholder="Password..."  type="password"  v-model="password"  class="auth-input"/>
-            
+
           </div>
 
           <div class="auth-actions">
@@ -48,16 +48,14 @@
           </div>
 
           <div class="auth-field">
-            <div class="card flex justify-center">
-                <Form v-slot="$form" :resolver="resolver" :initialValues="initialValues" @submit="onFormSubmit" class="flex flex-col gap-4 w-full sm:w-64" >
-                    <div class="flex flex-col gap-1">
-                        <Password name="password" placeholder="Password" v-model="password"  :feedback="false" fluid  />
-                        <template  v-if="$form.password?.invalid">
-                            <Message v-for="(error, index) of $form.password.errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
-                        </template>
-                    </div>
-                </Form>
-            </div>
+            <Form v-slot="$form" :resolver="resolver" :initialValues="initialValues"  @submit="onFormSubmit"  >
+                <div class="flex flex-col gap-1">
+                    <Password name="password" placeholder="Password" v-model="password"  class="auth-input" :feedback="false" fluid  />
+                    <template  v-if="$form.password?.invalid">
+                        <Message v-for="(error, index) of $form.password.errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
+                    </template>
+                </div>
+            </Form>
           </div>
 
           <div class="auth-actions">
@@ -68,10 +66,10 @@
         </div>
       </template>
     </Dialog>
-    
 
 
-    
+
+
 
 </template>
 <script setup>
@@ -97,13 +95,13 @@ const visible = ref(false);
 const visible1 = ref(false);
 const register = (email, password) => {
     console.log(email,password);
-    
+
     createUser(email, password);
     visible1.value = false;
     setTimeout(() => {
         toast.add({ severity: 'success', summary: 'success', detail: 'Succesfully registrated', life: 3000 });
 
-        
+
     }, 1000);
 };
 
@@ -258,7 +256,7 @@ Button {
 
 .auth-btn-primary:hover {
   background: #ede4ff;
-  
+
 }
 
 /* Forgot password */
@@ -458,7 +456,7 @@ Button {
   }
 }
 
-.p-password {
+:deep(.p-password-input) {
   width: 100%;
   border-radius: 999px;
   padding: 0.85rem 1.4rem;
@@ -466,5 +464,8 @@ Button {
   background: #f3f4f6;
   color: #4b5563;
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
+}
+:deep(.p-password.p-password-input::placeholder) {
+  color: #cbd5f5;
 }
 </style>
