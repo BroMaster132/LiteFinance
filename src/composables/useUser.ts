@@ -9,7 +9,7 @@ setDoc} from 'firebase/firestore'
 import { db, storage } from '@/firebase'
 import { getStorage, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { ref, computed, watch } from 'vue'
-import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'firebase/auth'
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { signInWithEmailAndPassword } from "firebase/auth";
 
@@ -63,6 +63,22 @@ export const useUser = () => {
       .catch((error) => {
         console.error(error)
       })
+  }
+    function initAuthListener() {
+    if (authInitialized) return;
+    authInitialized = true;
+
+    onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        // юзер залогинен в Firebase
+        user.value = firebaseUser;
+        addToLocalStorage();
+      } else {
+        // юзер вышел
+        user.value = null;
+        removeFromLocalStorage();
+      }
+    });
   }
 
   async function addUserToMainDatabase() {
@@ -126,6 +142,7 @@ export const useUser = () => {
       }
     }
   }
+  let authInitialized = false;
 
   function addToLocalStorage() {
     if (user.value) {
@@ -197,35 +214,45 @@ async function createUser(email: string, password: string) {
 }
 
 
-async function loginUser(email: string, password: string) {
+  async function loginUser(email: string, password: string) {
+    const emailRegex =
+      /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
 
-  // Проверка email синтаксиса
-  const emailRegex =
-    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      const error: any = new Error("Invalid email format");
+      error.code = "custom/invalid-email-format";
+      throw error;
+    }
 
-  if (!emailRegex.test(email)) {
-    const error: any = new Error("Invalid email format");
-    error.code = "custom/invalid-email-format";
-    throw error;
+    if (!password) {
+      const error: any = new Error("Password is required");
+      error.code = "custom/empty-password";
+      throw error;
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      user.value = userCredential.user;
+      addToLocalStorage();
+    } catch (error: any) {
+      throw error;
+    }
   }
 
-  if (!password) {
-    const error: any = new Error("Password is required");
-    error.code = "custom/empty-password";
-    throw error;
+  function initAuthListener() {
+    if (authInitialized) return;
+    authInitialized = true;
+
+    onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        user.value = firebaseUser;
+        addToLocalStorage();
+      } else {
+        user.value = null;
+        removeFromLocalStorage();
+      }
+    });
   }
-
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    user.value = userCredential.user;
-    addToLocalStorage();
-  } catch (error: any) {
-    throw error; // пробрасываем в компонент
-  }
-}
-
-
-
 
   return {
     user,
@@ -239,6 +266,7 @@ async function loginUser(email: string, password: string) {
     getUserFromLocalStorage,
     removeFromLocalStorage,
     createUser,
-    loginUser
+    loginUser,
+    initAuthListener
   }
 }

@@ -1,6 +1,14 @@
 <script setup>
 import NavBar from '@/components/layouts/NavBar.vue'
 import Footer from '@/components/layouts/Footer.vue'
+import { onMounted } from 'vue';
+import { useUser } from '@/composables/useUser';
+
+const { initAuthListener } = useUser();
+
+onMounted(() => {
+  initAuthListener();
+});
 </script>
 
 <template>
