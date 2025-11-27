@@ -3,11 +3,6 @@
     <Button v-if="!user" label="Log in" icon="pi pi-user" @click="visible = true" class="soft-pill"/>
     <Button v-if="!user" label="Sign Up" class="soft-pill" @click="visible1 = true"  />
 
-    <div v-else class="flex items-center gap-2">
-        <img :src="user.photoURL" alt="user-icon" width="30px" />
-        <span>{{ user.email }}</span>
-
-    </div>
     <Dialog  v-model:visible="visible"  modal  pt:root:class="!bg-transparent !border-0 !shadow-none"  pt:mask:class="'auth-dialog-mask'">
       <template #container="{ closeCallback }">
         <div class="auth-card">

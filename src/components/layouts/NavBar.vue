@@ -13,6 +13,8 @@
         </template>
         <template #end>
             <Logs />
+            <UserBar v-if="user" />
+
         </template>
     </Menubar>
 </template>
@@ -21,9 +23,12 @@
 import Menubar from 'primevue/menubar';
 import Badge from 'primevue/badge';
 import Logs from '../Logs.vue';
-
-
+import UserBar from '../UserBar.vue';
+import { useUser } from '@/composables/useUser';
+const { user } = useUser();
 import { ref } from "vue";
+
+const drawerOpen = ref(false)
 
 
 const items = ref([
