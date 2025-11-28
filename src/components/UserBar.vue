@@ -13,18 +13,18 @@
       <hr class="divider" />
 
       <nav class="menu">
-        <button class="menu-item">My spends</button>
-        <button class="menu-item">Arman is krutoi</button>
-        <button class="menu-item">Emir is krutoi</button>
-        <button class="menu-item">Emir is krutoi</button>
+        <Button label="Profile" class="menu-item" variant="outlined" />
+        <Button label="My Expenses" class="menu-item" variant="outlined" />
+        <Button label="Add Expense" class="menu-item" variant="outlined" />
       </nav>
 
       <hr class="divider" />
 
       <nav class="menu">
-        <button class="menu-item">Settings</button>
-        <button class="menu-item">Contact with us</button>
-        <button class="menu-item">Support</button>
+        <Button label="Settings" class="menu-item" variant="outlined" />
+        <Button label="Help" class="menu-item" variant="outlined" />
+        <Button label="Privacy Policy" class="menu-item" variant="outlined" />
+        <hr class="divider" />
         <Button label="Log out" @click="googleLogout()" class="menu-item" variant="outlined" />
       </nav>
     </div>
