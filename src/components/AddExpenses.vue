@@ -1,6 +1,5 @@
 <template>
-  <Button label="Add spending" icon="pi pi-plus" :disabled="!user" @click="open = true" />
-
+  <Button label="Add Expense" icon="pi pi-plus" @click="open = true" />
   <Dialog v-model:visible="open" modal header="Add spending" :style="{ width: '28rem' }">
     <div class="flex flex-col gap-3">
       <div class="flex flex-col gap-2">
@@ -48,14 +47,24 @@ import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Calendar from 'primevue/calendar'
 
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { useUser } from '@/composables/useUser'
 
+const props = defineProps({
+  visible: { type: Boolean, default: false }
+})
+
+const emit = defineEmits(['update:visible', 'saved'])
+
 const { user } = useUser()
 
-const open = ref(false)
+const open = computed({
+  get: () => props.visible,
+  set: v => emit('update:visible', v)
+})
+
 const loading = ref(false)
 const error = ref('')
 
@@ -70,10 +79,14 @@ const form = ref({
   note: ''
 })
 
-function close() {
-  open.value = false
+function reset() {
   error.value = ''
   form.value = { category: null, amount: null, currency: 'KZT', date: new Date(), note: '' }
+}
+
+function close() {
+  open.value = false
+  reset()
 }
 
 async function submit() {
@@ -107,6 +120,8 @@ async function submit() {
     }
 
     await addDoc(collection(db, 'users', uid, 'spendings'), spending)
+
+    emit('saved', spending)
     close()
   } catch (e) {
     error.value = e?.message || 'Failed to save'

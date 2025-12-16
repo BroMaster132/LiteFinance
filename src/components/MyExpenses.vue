@@ -12,7 +12,10 @@
             </div>
           </div>
 
-          <SelectButton v-model="range" :options="rangeOptions" class="mx-auto md:mx-0" />
+          <div class="flex items-center gap-3">
+            <SelectButton v-model="range" :options="rangeOptions" optionLabel="label" optionValue="value" />
+            <Dropdown v-model="targetCurrency" :options="targetCurrencyOptions" class="w-32" />
+          </div>
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -30,6 +33,14 @@
 
                 <div v-else-if="error" class="rounded-xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
                   {{ error }}
+                </div>
+
+                <div v-else-if="ratesLoading" class="flex h-[320px] items-center justify-center rounded-xl bg-slate-50 text-sm text-slate-500">
+                  Loading currency rates...
+                </div>
+
+                <div v-else-if="ratesError" class="rounded-xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
+                  {{ ratesError }}
                 </div>
 
                 <div
@@ -57,7 +68,7 @@
                     <div class="text-sm font-medium text-slate-800">{{ row.label }}</div>
                   </div>
                   <div class="text-sm text-slate-700">
-                    {{ formatMoney(row.value, currency) }}
+                    {{ formatMoney(row.value, targetCurrency) }}
                     <span class="ml-2 text-xs text-slate-400">({{ row.percent }}%)</span>
                   </div>
                 </div>
@@ -69,9 +80,7 @@
             <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
               <div class="flex items-center justify-between">
                 <div class="text-sm font-semibold text-slate-900">Latest Expenses</div>
-                <button class="text-xs text-slate-500 hover:text-slate-700" @click="goAll">
-                  See all
-                </button>
+                <button class="text-xs text-slate-500 hover:text-slate-700" @click="goAll">See all</button>
               </div>
 
               <div class="mt-4 space-y-3">
@@ -85,7 +94,12 @@
                   No expenses yet
                 </div>
 
-                <div  v-else  v-for="e in latestExpenses"  :key="e.id"  class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                <div
+                  v-else
+                  v-for="e in latestExpenses"
+                  :key="e.id"
+                  class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+                >
                   <div class="flex items-center gap-3">
                     <div class="grid h-10 w-10 place-items-center rounded-xl bg-white ring-1 ring-black/5">
                       <span class="text-lg">{{ iconFor(e.category) }}</span>
@@ -93,10 +107,14 @@
                     <div>
                       <div class="text-sm font-semibold text-slate-800">{{ e.category }}</div>
                       <div class="text-xs text-slate-500">{{ formatDate(e.spentAt) }}</div>
+                      <div class="text-[11px] text-slate-400">
+                        Original: {{ formatMoney(e.amount, e.currency || 'KZT') }}
+                      </div>
                     </div>
                   </div>
+
                   <div class="text-sm font-semibold text-slate-800">
-                    {{ formatMoney(e.amount, e.currency || currency) }}
+                    {{ formatMoney(e.amountConverted, targetCurrency) }}
                   </div>
                 </div>
               </div>
@@ -104,12 +122,12 @@
               <Divider class="my-5" />
 
               <div class="flex flex-col gap-3">
-              <AddExpenses v-model:visible="openAdd" @saved="handleSaved" />
-
+                <AddExpenses v-model:visible="openAdd" @saved="handleSaved" />
               </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
@@ -120,31 +138,45 @@ import Chart from 'primevue/chart'
 import SelectButton from 'primevue/selectbutton'
 import Divider from 'primevue/divider'
 import Skeleton from 'primevue/skeleton'
+import Dropdown from 'primevue/dropdown'
 
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watchEffect, watch } from 'vue'
 import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { useUser } from '@/composables/useUser'
 import { useRouter } from 'vue-router'
-
 import AddExpenses from '@/components/AddExpenses.vue'
-
-const router = useRouter()
 const { user } = useUser()
+const { initAuthListener } = useUser()
+initAuthListener()
 
-const rangeOptions = ['Day', 'Week', 'Month', 'Year', 'Period']
-const range = ref('Day')
+watch(
+  () => user.value?.uid,
+  (uid) => {
+    if (uid) loadSpendings(uid)
+  },
+  { immediate: true }
+)
+const router = useRouter()
+
+
+const rangeOptions = [
+  { label: 'Day', value: 'day' },
+  { label: 'Week', value: 'week' },
+  { label: 'Month', value: 'month' },
+  { label: 'Year', value: 'year' },
+  { label: 'All', value: 'all' }
+]
+const range = ref('month')
 
 const openAdd = ref(false)
 
 const loading = ref(false)
 const error = ref('')
-const spendings = ref([])
-
-const currency = ref('KZT')
+const spendingsRaw = ref([])
 
 function goAll() {
-  router.push('/spending')
+  router.push('/myspendings')
 }
 
 function handleSaved() {
@@ -164,7 +196,7 @@ function iconFor(cat) {
 
 function formatMoney(amount, cur) {
   const a = Number(amount || 0)
-  return `${a.toLocaleString()} ${cur || ''}`.trim()
+  return `${a.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${cur || ''}`.trim()
 }
 
 function formatDate(d) {
@@ -173,16 +205,139 @@ function formatDate(d) {
   return date.toLocaleDateString()
 }
 
-const colors = ['#fb923c', '#22c55e', '#38bdf8', '#fb7185', '#a78bfa', '#94a3b8']
+function startOfDay(d) {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+function startOfWeek(d) {
+  const x = startOfDay(d)
+  const day = x.getDay() || 7
+  x.setDate(x.getDate() - (day - 1))
+  return x
+}
+function startOfMonth(d) {
+  const x = startOfDay(d)
+  x.setDate(1)
+  return x
+}
+function startOfYear(d) {
+  const x = startOfDay(d)
+  x.setMonth(0, 1)
+  return x
+}
+function fromDateForRange(r) {
+  const now = new Date()
+  if (r === 'day') return startOfDay(now)
+  if (r === 'week') return startOfWeek(now)
+  if (r === 'month') return startOfMonth(now)
+  if (r === 'year') return startOfYear(now)
+  return null
+}
+
+const spendingsByRange = computed(() => {
+  const from = fromDateForRange(range.value)
+  if (!from) return spendingsRaw.value
+  return spendingsRaw.value.filter(s => {
+    const d = s.spentAt instanceof Date ? s.spentAt : new Date(s.spentAt)
+    return d >= from
+  })
+})
+
+async function loadSpendings(uid) {
+  loading.value = true
+  error.value = ''
+  try {
+    const q = query(collection(db, 'users', uid, 'spendings'), orderBy('spentAt', 'desc'), limit(300))
+    const snap = await getDocs(q)
+    spendingsRaw.value = snap.docs.map(d => {
+      const data = d.data()
+      const spentAt = data.spentAt?.toDate ? data.spentAt.toDate() : data.spentAt
+      return { id: d.id, ...data, spentAt }
+    })
+  } catch (e) {
+    error.value = e?.message || 'Failed to load spendings'
+  } finally {
+    loading.value = false
+  }
+}
+
+const targetCurrency = ref('KZT')
+const rates = ref({})
+const ratesLoading = ref(false)
+const ratesError = ref('')
+
+const targetCurrencyOptions = computed(() => {
+  const set = new Set(spendingsRaw.value.map(s => (s.currency || 'KZT').toUpperCase()))
+  const base = ['KZT', 'USD', 'EUR']
+  return Array.from(new Set([...base, ...Array.from(set)]))
+})
+
+async function fetchRates(baseCurrency) {
+  const key = import.meta.env.VITE_EXCHANGERATE_API_KEY
+  if (!key) throw new Error('Missing VITE_EXCHANGERATE_API_KEY')
+
+  const url = `https://v6.exchangerate-api.com/v6/${key}/latest/${baseCurrency}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Rates error: ${res.status}`)
+
+  const json = await res.json()
+  if (json.result !== 'success') throw new Error(json['error-type'] || 'Rates error')
+
+  return json.conversion_rates || {}
+}
+
+async function ensureRates() {
+  ratesError.value = ''
+  ratesLoading.value = true
+  try {
+    rates.value = await fetchRates(targetCurrency.value.toUpperCase())
+  } catch (e) {
+    ratesError.value = e?.message || 'Failed to load rates'
+  } finally {
+    ratesLoading.value = false
+  }
+}
+
+
+
+function convertToTarget(amount, fromCur) {
+  const from = (fromCur || 'KZT').toUpperCase()
+  const to = targetCurrency.value.toUpperCase()
+
+  if (from === to) return Number(amount || 0)
+
+  const r = rates.value[from]
+  if (!r) return Number(amount || 0)
+
+  return Number(amount || 0) / r
+}
+
+
+const spendingsConverted = computed(() =>
+  spendingsByRange.value.map(s => ({
+    ...s,
+    amountConverted: convertToTarget(s.amount, s.currency)
+  }))
+)
 
 const totalsByCategory = computed(() => {
   const map = new Map()
-  for (const s of spendings.value) {
+  for (const s of spendingsConverted.value) {
     const key = s.category || 'Other'
-    map.set(key, (map.get(key) || 0) + Number(s.amount || 0))
+    map.set(key, (map.get(key) || 0) + Number(s.amountConverted || 0))
   }
   return map
 })
+
+const latestExpenses = computed(() => spendingsConverted.value.slice(0, 3))
+
+const totalLabel = computed(() => {
+  if (ratesLoading.value) return 'Total: loading rates...'
+  if (ratesError.value) return 'Total: rates error'
+  return `Total: ${formatMoney(totalSum.value, targetCurrency.value)}`
+})
+
 
 const totalSum = computed(() => {
   let t = 0
@@ -191,6 +346,8 @@ const totalSum = computed(() => {
 })
 
 const chartReady = computed(() => totalSum.value > 0 && totalsByCategory.value.size > 0)
+
+const colors = ['#fb923c', '#22c55e', '#38bdf8', '#fb7185', '#a78bfa', '#94a3b8']
 
 const chartData = computed(() => {
   const labels = Array.from(totalsByCategory.value.keys())
@@ -222,30 +379,11 @@ const legendRows = computed(() => {
   })
 })
 
-const latestExpenses = computed(() => spendings.value.slice(0, 3))
-
-async function loadSpendings(uid) {
-  loading.value = true
-  error.value = ''
-  try {
-    const q = query(collection(db, 'users', uid, 'spendings'), orderBy('spentAt', 'desc'), limit(200))
-    const snap = await getDocs(q)
-    spendings.value = snap.docs.map(d => {
-      const data = d.data()
-      const spentAt = data.spentAt?.toDate ? data.spentAt.toDate() : data.spentAt
-      return { id: d.id, ...data, spentAt }
-    })
-  } catch (e) {
-    error.value = e?.message || 'Failed to load spendings'
-  } finally {
-    loading.value = false
-  }
-}
-
 watchEffect(() => {
-  const uid = user.value?.uid
-  if (uid) loadSpendings(uid)
+  if (spendingsRaw.value.length) ensureRates()
 })
 
-const totalLabel = computed(() => `Total: ${formatMoney(totalSum.value, currency.value)}`)
+watch(targetCurrency, () => {
+  if (spendingsRaw.value.length) ensureRates()
+})
 </script>
