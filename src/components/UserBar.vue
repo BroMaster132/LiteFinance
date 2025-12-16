@@ -21,7 +21,7 @@
       <hr class="divider" />
 
       <nav class="menu">
-        <Button label="Settings" class="menu-item" variant="outlined" />
+        <Button label="Settings" class="menu-item" variant="outlined" @click="$router.push('/settings')" />
         <Button label="Help" class="menu-item" variant="outlined" />
         <Button label="Privacy Policy" class="menu-item" variant="outlined" />
         <hr class="divider" />

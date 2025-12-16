@@ -1,13 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-
+import HomePage from '@/components/HomePage.vue'
+import Settings from '@/components/Settings.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
       name: 'home',
-      component: HomeView,
+      component: HomePage,
     },
     {
       path: '/about',
@@ -17,6 +17,21 @@ const router = createRouter({
       // which is lazy-loaded when the route is visited.
       component: () => import('../views/AboutView.vue'),
     },
+    {
+      // path: '/profile',
+      // name: 'profile',
+      // component: () => import('../views/ProfileView.vue'),
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => Settings
+    },
+    {
+      path: '/expenses',
+      name: 'expenses',
+      component: () => import('../components/MyExpenses.vue'),
+    }
   ],
 })
 

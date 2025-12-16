@@ -27,20 +27,15 @@ import UserBar from '../UserBar.vue';
 import { useUser } from '@/composables/useUser';
 const { user } = useUser();
 import { ref } from "vue";
+import { useRouter } from 'vue-router';
+const router = useRouter();
 
-const drawerOpen = ref(false)
 
 
 const items = ref([
-    {
-        label: 'Features',
-    },
-    {
-        label: 'My Spending',
-    },
-    {
-        label: 'Feedback',
-    }
+  { label: 'Home', command: () => { router.push('/') } },
+  { label: 'My Expenses', command: () => { router.push('/expenses') } },
+  { label: 'Feedback', command: () => { router.push('/feedback') } }
 ]);
 
 </script>

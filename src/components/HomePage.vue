@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import MyExpenses from './MyExpenses.vue';
+import MyExpenses from "@/components/Example.vue";
 const features = [
   {
     icon: '📊',

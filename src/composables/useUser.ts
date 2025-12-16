@@ -9,15 +9,25 @@ import {
 } from 'firebase/firestore'
 import { db, storage } from '@/firebase'
 import { getStorage, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { ref, computed, watch } from 'vue'
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'firebase/auth'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { ref, computed } from 'vue'
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  updateEmail,
+  updateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from 'firebase/auth'
 
 const auth = getAuth()
 
-const user = ref()
-const userList = ref([] as DocumentData)
+const user = ref<any>()
+const userList = ref<DocumentData[]>([])
 
 const loading = ref({
   user: false,
@@ -39,109 +49,117 @@ const userToObject = computed(() => {
   return null
 })
 
+
+
+let authInitialized = false
+
 export const useUser = () => {
   const auth = getAuth()
 
-  // войти с помощью окна гугл
-  function googleRegister() {
+  // sign in with Google popup
+  async function googleRegister() {
     const provider = new GoogleAuthProvider()
 
-    signInWithPopup(auth, provider)
-      .then(async (userCredential) => {
-        user.value = userCredential.user
+    try {
+      const userCredential = await signInWithPopup(auth, provider)
+      user.value = userCredential.user
 
-        // проверка первый ли раз он зашел
-        await addUserToMainDatabase()
-
-        // достаем данные если не первый раз
-        await getFromMainDatabase()
-
-        // добавляем в локал сторадж
-        addToLocalStorage()
-      })
-      .catch((error) => {
-        console.error(error)
-      })
+      await addUserToMainDatabase()
+      await getFromMainDatabase()
+      addToLocalStorage()
+    } catch (error) {
+      console.error(error)
+      throw error
+    }
   }
+
   function initAuthListener() {
     if (authInitialized) return
     authInitialized = true
 
-    onAuthStateChanged(auth, (firebaseUser) => {
+    onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // юзер залогинен в Firebase
         user.value = firebaseUser
         addToLocalStorage()
+        // pull extra data from Firestore if exists
+        await getFromMainDatabase()
       } else {
-        // юзер вышел
         user.value = null
         removeFromLocalStorage()
       }
     })
   }
 
+  // create/update user document with id = uid
   async function addUserToMainDatabase() {
+    if (!userToObject.value) return
     loading.value.user = true
     try {
-      if (userToObject.value) {
-        await getAllUsers()
-        if (!checkUserInDatabase()) {
-          await addDoc(collection(db, 'users'), userToObject.value)
-        } else {
-          console.error('User already in database')
-        }
-      }
-      loading.value.user = false
+      const u = userToObject.value
+      const userRef = doc(db, 'users', u.uid)
+      await setDoc(
+        userRef,
+        {
+          ...u,
+        },
+        { merge: true },
+      )
     } catch (error) {
       console.error(error)
+      throw error
+    } finally {
+      loading.value.user = false
     }
   }
 
-  // получить всех юзеров
+  // get all users
   async function getAllUsers() {
     loading.value.userList = true
+    userList.value = []
     try {
       const querySnapshot = await getDocs(collection(db, 'users'))
-      querySnapshot.forEach((doc) => {
-        userList.value.push(doc.data())
+      querySnapshot.forEach((d) => {
+        userList.value.push(d.data())
       })
+    } catch (error) {
+      console.error(error)
+      throw error
+    } finally {
       loading.value.userList = false
+    }
+  }
+
+  // fetch current user's data from Firestore and merge into user.value
+  async function getFromMainDatabase() {
+    if (!user.value?.uid) return
+    try {
+      const userDocRef = doc(db, 'users', user.value.uid)
+      const snap = await getDoc(userDocRef)
+      if (snap.exists()) {
+        const data = snap.data()
+        user.value = {
+          ...user.value,
+          ...data,
+        }
+      } else {
+        // if doc does not exist yet, create it
+        await addUserToMainDatabase()
+      }
     } catch (error) {
       console.error(error)
     }
   }
 
-  // проверка есть ли юзер в базе данных
-  function checkUserInDatabase() {
-    return userList.value.some((item: any) => item.uid === userToObject.value?.uid)
-  }
-
-  // получить данные из базы данных
-  async function getFromMainDatabase() {
-    await getAllUsers()
-    user.value = userList.value.find((item: any) => item.uid === user.value?.uid)
-  }
-
-  // обновить данные в базе данных
+  // update whole Firestore doc from current user.value (rarely needed)
   async function updateUserInDatabase() {
-    if (user.value) {
-      try {
-        const userDocRef = doc(db, 'users', user.value.uid)
-        const existingUserDoc = await getDoc(userDocRef)
-        if (existingUserDoc.exists()) {
-          const userData = existingUserDoc.data()
-          const updatedData = {
-            ...userData,
-            ...user.value,
-          }
-          await setDoc(userDocRef, updatedData)
-        }
-      } catch (error) {
-        console.error(error)
-      }
+    if (!user.value?.uid) return
+    try {
+      const userDocRef = doc(db, 'users', user.value.uid)
+      await setDoc(userDocRef, { ...user.value }, { merge: true })
+    } catch (error) {
+      console.error(error)
     }
   }
-  let authInitialized = false
 
   function addToLocalStorage() {
     if (user.value) {
@@ -160,17 +178,14 @@ export const useUser = () => {
     localStorage.removeItem('user')
   }
 
-  // выйти из гугла
+  // google logout
   function googleLogout() {
     auth.signOut()
     user.value = null
-
-    // удаляем из локал сторадж
     removeFromLocalStorage()
   }
 
   async function createUser(email: string, password: string) {
-    // 1. Валидация email (синтаксис)
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/
 
     if (!emailRegex.test(email)) {
@@ -179,7 +194,6 @@ export const useUser = () => {
       throw error
     }
 
-    // 2. Валидация пароля по политике Firebase (скрин)
     const errors: string[] = []
 
     if (password.length < 6) {
@@ -199,13 +213,13 @@ export const useUser = () => {
       throw error
     }
 
-    // 3. Создание пользователя в Firebase Auth
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       user.value = userCredential.user
       addToLocalStorage()
+      await addUserToMainDatabase()
+      await getFromMainDatabase()
     } catch (error) {
-      // auth/email-already-in-use и т.п. пойдут выше
       throw error
     }
   }
@@ -229,24 +243,100 @@ export const useUser = () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       user.value = userCredential.user
       addToLocalStorage()
+      await getFromMainDatabase()
     } catch (error: any) {
       throw error
     }
   }
 
-  function initAuthListener() {
-    if (authInitialized) return
-    authInitialized = true
+  type ChangeUserPayload = {
+    name?: string
+    email?: string
+    newPassword?: string
+    currentPassword?: string
+  }
 
-    onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        user.value = firebaseUser
-        addToLocalStorage()
-      } else {
-        user.value = null
-        removeFromLocalStorage()
+  async function changeUserCredentials(payload: ChangeUserPayload) {
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      const err = new Error('No authenticated user')
+      ;(err as any).code = 'no-auth-user'
+      throw err
+    }
+
+    const { name, email, newPassword, currentPassword } = payload
+
+    const wantNameChange =
+      typeof name === 'string' &&
+      name.trim() !== '' &&
+      name !== currentUser.displayName
+
+    const wantEmailChange =
+      typeof email === 'string' &&
+      email.trim() !== '' &&
+      email !== currentUser.email
+
+    const wantPasswordChange = !!newPassword
+
+    if (!wantNameChange && !wantEmailChange && !wantPasswordChange) {
+      const err = new Error('Nothing to update')
+      ;(err as any).code = 'nothing-to-update'
+      throw err
+    }
+
+    // re-auth if email or password changes
+    if ((wantEmailChange || wantPasswordChange) && currentUser.email) {
+      if (!currentPassword) {
+        const err = new Error('Current password is required')
+        ;(err as any).code = 'current-password-required'
+        throw err
       }
-    })
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        currentPassword,
+      )
+      await reauthenticateWithCredential(currentUser, credential)
+    }
+
+    // 1) Name: Auth + Firestore
+    if (wantNameChange && name) {
+      await updateProfile(currentUser, { displayName: name })
+
+      const userRef = doc(db, 'users', currentUser.uid)
+      await setDoc(userRef, { name }, { merge: true })
+
+      if (user.value) {
+        user.value = {
+          ...user.value,
+          displayName: name,
+          name,
+        }
+      }
+    }
+
+    // 2) Email: Auth + Firestore
+    if (wantEmailChange && email) {
+      await updateEmail(currentUser, email)
+
+      const userRef = doc(db, 'users', currentUser.uid)
+      await setDoc(userRef, { email }, { merge: true })
+
+      if (user.value) {
+        user.value = {
+          ...user.value,
+          email,
+        }
+      }
+    }
+
+    // 3) Password: Auth only
+    if (wantPasswordChange && newPassword) {
+      await updatePassword(currentUser, newPassword)
+    }
+
+    if (user.value) {
+      addToLocalStorage()
+    }
   }
 
   return {
@@ -263,5 +353,7 @@ export const useUser = () => {
     createUser,
     loginUser,
     initAuthListener,
+    changeUserCredentials,
+    updateUserInDatabase,
   }
 }

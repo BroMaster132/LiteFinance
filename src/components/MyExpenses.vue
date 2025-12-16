@@ -1,325 +1,251 @@
 <template>
-  <Card class="expenses-card">
-    <template #title>
-      <div class="header">
-        <span>MY EXPENSES</span>
-
-        <div class="period-tabs">
-          <Button  v-for="period in periods"  :key="period.value"  :label="period.label"  variant="text"  size="small"  :class="['period-btn', { 'is-active': activePeriod === period.value }]"  @click="activePeriod = period.value"/>
-        </div>
-      </div>
-    </template>
-
-    <template #content>
-      <div class="body">
-        <!-- LEFT: donut + legend -->
-        <div class="left">
-          <div class="chart-wrapper">
-            <Chart  type="doughnut"  :data="chartData"  :options="chartOptions"  class="donut-chart"/>
-          </div>
-
-          <ul class="legend">
-            <li v-for="item in breakdown" :key="item.label">
-              <span :class="['dot', item.class]"></span>
-              <span>
-                {{ item.icon }} {{ item.label }} - {{ item.amount }} ₸ ({{ item.percent }}%)
-              </span>
-            </li>
-          </ul>
-        </div>
-
-        <!-- RIGHT: latest expenses + buttons -->
-        <div class="right">
-          <div class="latest">
-            <h3>Latest Expenses</h3>
-            <div  v-for="row in latestExpenses"  :key="row.label"  class="expense-row">
-              <span>{{ row.icon }} <strong>{{ row.label }}</strong></span>
-              <span class="amount">{{ row.amount }} ₸</span>
+  <div class="min-h-[calc(100vh-80px)] bg-slate-950/0 px-4 py-6">
+    <div class="mx-auto w-full max-w-6xl">
+      <div class="rounded-3xl bg-slate-100/90 p-6 shadow-sm ring-1 ring-black/5">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div class="text-center text-2xl font-semibold tracking-widest text-slate-900 md:text-left">
+              MY EXPENSES
             </div>
-
-            <div class="divider"></div>
-
-            <button class="see-all">
-              See All Expenses
-              <span class="arrow">⌄</span>
-            </button>
-          </div>
-
-          <div class="actions">
-            <Button  label="Add Expenses"  class="add-btn"  size="large"/>
-            <div class="small-actions">
-              <Button  label="Take photo of receipt"  icon="pi pi-camera"  size="small"  variant="outlined"/>
-              <Button  label="Upload image of receipt"  icon="pi pi-upload"  size="small"  variant="outlined"/>
+            <div class="mt-1 text-center text-sm text-slate-500 md:text-left">
+              Track spending by category and time range
             </div>
           </div>
+
+          <SelectButton v-model="range" :options="rangeOptions" class="mx-auto md:mx-0" />
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div class="lg:col-span-7">
+            <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-semibold text-slate-900">Overview</div>
+                <div class="text-xs text-slate-500">{{ totalLabel }}</div>
+              </div>
+
+              <div class="mt-4">
+                <div v-if="loading" class="h-[320px]">
+                  <Skeleton width="100%" height="320px" />
+                </div>
+
+                <div v-else-if="error" class="rounded-xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
+                  {{ error }}
+                </div>
+
+                <div
+                  v-else-if="!chartReady"
+                  class="flex h-[320px] items-center justify-center rounded-xl bg-slate-50 text-sm text-slate-500"
+                >
+                  No expenses yet for this period
+                </div>
+
+                <div v-else class="h-[320px]">
+                  <Chart type="doughnut" :data="chartData" :options="chartOptions" class="h-full w-full" />
+                </div>
+              </div>
+
+              <Divider class="my-5" />
+
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div
+                  v-for="row in legendRows"
+                  :key="row.label"
+                  class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="inline-block h-2.5 w-2.5 rounded-full" :style="{ background: row.color }"></span>
+                    <div class="text-sm font-medium text-slate-800">{{ row.label }}</div>
+                  </div>
+                  <div class="text-sm text-slate-700">
+                    {{ formatMoney(row.value, currency) }}
+                    <span class="ml-2 text-xs text-slate-400">({{ row.percent }}%)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5">
+            <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-semibold text-slate-900">Latest Expenses</div>
+                <button class="text-xs text-slate-500 hover:text-slate-700" @click="goAll">
+                  See all
+                </button>
+              </div>
+
+              <div class="mt-4 space-y-3">
+                <div v-if="loading">
+                  <Skeleton width="100%" height="52px" />
+                  <Skeleton width="100%" height="52px" class="mt-3" />
+                  <Skeleton width="100%" height="52px" class="mt-3" />
+                </div>
+
+                <div v-else-if="!latestExpenses.length" class="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                  No expenses yet
+                </div>
+
+                <div  v-else  v-for="e in latestExpenses"  :key="e.id"  class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                  <div class="flex items-center gap-3">
+                    <div class="grid h-10 w-10 place-items-center rounded-xl bg-white ring-1 ring-black/5">
+                      <span class="text-lg">{{ iconFor(e.category) }}</span>
+                    </div>
+                    <div>
+                      <div class="text-sm font-semibold text-slate-800">{{ e.category }}</div>
+                      <div class="text-xs text-slate-500">{{ formatDate(e.spentAt) }}</div>
+                    </div>
+                  </div>
+                  <div class="text-sm font-semibold text-slate-800">
+                    {{ formatMoney(e.amount, e.currency || currency) }}
+                  </div>
+                </div>
+              </div>
+
+              <Divider class="my-5" />
+
+              <div class="flex flex-col gap-3">
+              <AddExpenses v-model:visible="openAdd" @saved="handleSaved" />
+
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </template>
-  </Card>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import Card from 'primevue/card'
-import Button from 'primevue/button'
 import Chart from 'primevue/chart'
+import SelectButton from 'primevue/selectbutton'
+import Divider from 'primevue/divider'
+import Skeleton from 'primevue/skeleton'
 
+import { ref, computed, watchEffect } from 'vue'
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore'
+import { db } from '@/firebase'
+import { useUser } from '@/composables/useUser'
+import { useRouter } from 'vue-router'
 
-/* Available periods */
-const periods = [
-  { label: 'Day', value: 'day' },
-  { label: 'Week', value: 'week' },
-  { label: 'Month', value: 'month' },
-  { label: 'Year', value: 'year' },
-  { label: 'Period', value: 'period' }
-]
+import AddExpenses from '@/components/AddExpenses.vue'
 
-const activePeriod = ref('day')
+const router = useRouter()
+const { user } = useUser()
 
-/* Data for each period (example values – change to yours or load from API) */
-const periodExpenses = {
-  day: {
-    breakdown: [
-      { label: 'Food',          amount: 1350, percent: 37.5, icon: '🍔', class: 'dot-food' },
-      { label: 'Clothes',       amount: 450,  percent: 12.5, icon: '👕', class: 'dot-clothes' },
-      { label: 'Entertainment', amount: 900,  percent: 25,   icon: '🎉', class: 'dot-entertainment' },
-      { label: 'Transport',     amount: 540,  percent: 15,   icon: '🚕', class: 'dot-transport' },
-      { label: 'Other',         amount: 360,  percent: 10,   icon: '⚪', class: 'dot-other' }
-    ],
-    latest: [
-      { label: 'Transport',     amount: 540, icon: '🚕' },
-      { label: 'Food',          amount: 650, icon: '🍔' },
-      { label: 'Entertainment', amount: 300, icon: '🎉' }
-    ]
-  },
-  week: {
-    breakdown: [
-      { label: 'Food',          amount: 4200, percent: 40, icon: '🍔', class: 'dot-food' },
-      { label: 'Clothes',       amount: 800,  percent: 7.5, icon: '👕', class: 'dot-clothes' },
-      { label: 'Entertainment', amount: 2500, percent: 24, icon: '🎉', class: 'dot-entertainment' },
-      { label: 'Transport',     amount: 1600, percent: 15, icon: '🚕', class: 'dot-transport' },
-      { label: 'Other',         amount: 900,  percent: 13.5, icon: '⚪', class: 'dot-other' }
-    ],
-    latest: [
-      { label: 'Cinema',       amount: 1500, icon: '🎬' },
-      { label: 'Groceries',    amount: 2200, icon: '🛒' },
-      { label: 'Taxi',         amount: 700,  icon: '🚕' }
-    ]
-  },
-  month: {
-    breakdown: [
-      { label: 'Food',          amount: 13000, percent: 35, icon: '🍔', class: 'dot-food' },
-      { label: 'Clothes',       amount: 5000,  percent: 13, icon: '👕', class: 'dot-clothes' },
-      { label: 'Entertainment', amount: 9000,  percent: 24, icon: '🎉', class: 'dot-entertainment' },
-      { label: 'Transport',     amount: 6000,  percent: 16, icon: '🚕', class: 'dot-transport' },
-      { label: 'Other',         amount: 4000,  percent: 12, icon: '⚪', class: 'dot-other' }
-    ],
-    latest: [
-      { label: 'Restaurant',   amount: 4500, icon: '🍽' },
-      { label: 'New shoes',    amount: 6000, icon: '👟' },
-      { label: 'Concert',      amount: 3500, icon: '🎵' }
-    ]
-  },
-  year:   { 
-    breakdown: [
-      { label: 'Food',          amount: 156000, percent: 34, icon: '🍔', class: 'dot-food' },
-      { label: 'Clothes',       amount: 72000,  percent: 16, icon: '👕', class: 'dot-clothes' },
-      { label: 'Entertainment', amount: 108000, percent: 24, icon: '🎉', class: 'dot-entertainment' },
-      { label: 'Transport',     amount: 72000,  percent: 16, icon: '🚕', class: 'dot-transport' },
-      { label: 'Other',         amount: 48000,  percent: 10, icon: '⚪', class: 'dot-other' }
-    ],
-    latest: [
-      { label: 'Vacation',     amount: 45000, icon: '🏖' },
-      { label: 'New wardrobe', amount: 60000, icon: '👗' },
-      { label: 'Gadgets',      amount: 30000, icon: '📱' }
-    ]
-   },
-  period: { breakdown: [
-    { label: 'Food',          amount: 0, percent: 0, icon: '🍔', class: 'dot-food' },
-    { label: 'Clothes',       amount: 0, percent: 0, icon: '👕', class: 'dot-clothes' },
-    { label: 'Entertainment', amount: 0, percent: 0, icon: '🎉', class: 'dot-entertainment' },
-    { label: 'Transport',     amount: 0, percent: 0, icon: '🚕', class: 'dot-transport' },
-    { label: 'Other',         amount: 0, percent: 0, icon: '⚪', class: 'dot-other' }
-  ], 
-  latest: [
-    { label: '-', amount: 0, icon: '–' },
-    { label: '-', amount: 0, icon: '–' },
-    { label: '-', amount: 0, icon: '–' }
-  ] }
+const rangeOptions = ['Day', 'Week', 'Month', 'Year', 'Period']
+const range = ref('Day')
+
+const openAdd = ref(false)
+
+const loading = ref(false)
+const error = ref('')
+const spendings = ref([])
+
+const currency = ref('KZT')
+
+function goAll() {
+  router.push('/spending')
 }
 
-/* Data for currently selected period */
-const breakdown = computed(
-  () => periodExpenses[activePeriod.value].breakdown
-)
-const latestExpenses = computed(
-  () => periodExpenses[activePeriod.value].latest
-)
+function handleSaved() {
+  const uid = user.value?.uid
+  if (uid) loadSpendings(uid)
+}
 
-/* Chart data depends on current breakdown */
-const chartData = computed(() => ({
-  labels: breakdown.value.map(b => b.label),
-  datasets: [
-    {
-      data: breakdown.value.map(b => b.amount),
-      backgroundColor: ['#fb923c', '#22d3ee', '#f97373', '#facc15', '#9ca3af'],
-      hoverBackgroundColor: ['#fdba74', '#38e5ff', '#fca5a5', '#fde047', '#d1d5db'],
-      borderWidth: 0
-    }
-  ]
+function iconFor(cat) {
+  const c = (cat || '').toLowerCase()
+  if (c.includes('food')) return '🍔'
+  if (c.includes('transport')) return '🚕'
+  if (c.includes('entertain')) return '🎉'
+  if (c.includes('cloth')) return '👕'
+  if (c.includes('bill')) return '🧾'
+  return '⚪'
+}
+
+function formatMoney(amount, cur) {
+  const a = Number(amount || 0)
+  return `${a.toLocaleString()} ${cur || ''}`.trim()
+}
+
+function formatDate(d) {
+  if (!d) return ''
+  const date = d instanceof Date ? d : new Date(d)
+  return date.toLocaleDateString()
+}
+
+const colors = ['#fb923c', '#22c55e', '#38bdf8', '#fb7185', '#a78bfa', '#94a3b8']
+
+const totalsByCategory = computed(() => {
+  const map = new Map()
+  for (const s of spendings.value) {
+    const key = s.category || 'Other'
+    map.set(key, (map.get(key) || 0) + Number(s.amount || 0))
+  }
+  return map
+})
+
+const totalSum = computed(() => {
+  let t = 0
+  for (const v of totalsByCategory.value.values()) t += v
+  return t
+})
+
+const chartReady = computed(() => totalSum.value > 0 && totalsByCategory.value.size > 0)
+
+const chartData = computed(() => {
+  const labels = Array.from(totalsByCategory.value.keys())
+  const data = Array.from(totalsByCategory.value.values())
+  return {
+    labels,
+    datasets: [{ data, backgroundColor: labels.map((_, i) => colors[i % colors.length]), borderWidth: 0 }]
+  }
+})
+
+const chartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  cutout: '68%',
+  plugins: {
+    legend: { display: false },
+    tooltip: { enabled: true }
+  }
 }))
 
-/* Chart options */
-const chartOptions = {
-  cutout: '70%',
-  plugins: {
-    legend: { display: false }
-  },
-  maintainAspectRatio: false
-}
-</script>
+const legendRows = computed(() => {
+  const labels = Array.from(totalsByCategory.value.keys())
+  const vals = Array.from(totalsByCategory.value.values())
+  const sum = totalSum.value || 1
+  return labels.map((label, i) => {
+    const value = vals[i] || 0
+    const percent = Math.round((value / sum) * 1000) / 10
+    return { label, value, percent, color: colors[i % colors.length] }
+  })
+})
 
-<style scoped>
-/* same styles as before */
-.expenses-card {
-  max-width: 780px;
-  margin: 0 auto;
-  border-radius: 28px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
-  background-color: aliceblue ;
-  color: #000;
-}
-.header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-.header > span {
-  letter-spacing: 0.12em;
-  font-size: 1.6rem;
-}
-.period-tabs {
-  display: flex;
-  gap: 8px;
-}
-.period-btn {
-  font-size: 0.9rem;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-.period-btn.is-active {
-  background: #111827;
-  color: #ffffff;
-}
-.body {
-  display: flex;
-  gap: 32px;
-  margin-top: 10px;
-}
-.left {
-  flex: 0 0 45%;
-}
-.right {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.chart-wrapper {
-  height: 190px;
-  display: flex;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-.donut-chart {
-  width: 190px !important;
-  height: 190px !important;
-}
-.legend {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 0.9rem;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.legend li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-}
-.dot-food { background: #fb923c; }
-.dot-clothes { background: #22d3ee; }
-.dot-entertainment { background: #f97373; }
-.dot-transport { background: #facc15; }
-.dot-other { background: #9ca3af; }
-.latest h3 {
-  text-align: center;
-  margin: 0 0 12px;
-  font-size: 1.05rem;
-}
-.expense-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  font-size: 0.98rem;
-}
-.amount {
-  font-weight: 600;
-}
-.divider {
-  border-bottom: 1px solid #e5e7eb;
-  margin: 6px 0 4px;
-}
-.see-all {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 0.86rem;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.arrow {
-  font-size: 0.9rem;
-}
-.actions {
-  margin-top: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.add-btn {
-  align-self: flex-end;
-  background: linear-gradient(135deg, #a855f7, #ec4899);
-  border-radius: 999px;
-  border: none;
-  box-shadow: 0 16px 30px rgba(168, 85, 247, 0.45);
-}
-.small-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: flex-end;
-}
-@media (max-width: 780px) {
-  .body {
-    flex-direction: column;
-  }
-  .add-btn {
-    align-self: center;
-    width: 100%;
-  }
-  .small-actions {
-    justify-content: center;
+const latestExpenses = computed(() => spendings.value.slice(0, 3))
+
+async function loadSpendings(uid) {
+  loading.value = true
+  error.value = ''
+  try {
+    const q = query(collection(db, 'users', uid, 'spendings'), orderBy('spentAt', 'desc'), limit(200))
+    const snap = await getDocs(q)
+    spendings.value = snap.docs.map(d => {
+      const data = d.data()
+      const spentAt = data.spentAt?.toDate ? data.spentAt.toDate() : data.spentAt
+      return { id: d.id, ...data, spentAt }
+    })
+  } catch (e) {
+    error.value = e?.message || 'Failed to load spendings'
+  } finally {
+    loading.value = false
   }
 }
-</style>
+
+watchEffect(() => {
+  const uid = user.value?.uid
+  if (uid) loadSpendings(uid)
+})
+
+const totalLabel = computed(() => `Total: ${formatMoney(totalSum.value, currency.value)}`)
+</script>
