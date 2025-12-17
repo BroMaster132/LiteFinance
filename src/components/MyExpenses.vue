@@ -27,7 +27,7 @@
               </div>
 
               <div class="mt-4">
-                <div v-if="loading" class="h-[320px]">
+                <div v-if="loading || !hasLoaded" class="h-[320px]">
                   <Skeleton width="100%" height="320px" />
                 </div>
 
@@ -84,7 +84,7 @@
               </div>
 
               <div class="mt-4 space-y-3">
-                <div v-if="loading">
+                <div v-if="loading || !hasLoaded">
                   <Skeleton width="100%" height="52px" />
                   <Skeleton width="100%" height="52px" class="mt-3" />
                   <Skeleton width="100%" height="52px" class="mt-3" />
@@ -146,19 +146,17 @@ import { db } from '@/firebase'
 import { useUser } from '@/composables/useUser'
 import { useRouter } from 'vue-router'
 import AddExpenses from '@/components/AddExpenses.vue'
-const { user } = useUser()
-const { initAuthListener } = useUser()
 
+const router = useRouter()
+
+const { user, initAuthListener, getUserFromLocalStorage } = useUser()
+getUserFromLocalStorage()
 initAuthListener()
 
-watch(
-  () => user.value?.uid,
-  (uid) => {
-    if (uid) loadSpendings(uid)
-  },
-  { immediate: true }
-)
-const router = useRouter()
+const hasLoaded = ref(false)
+
+
+
 const categoryColors = {
   Food: '#fb923c',
   Transport: '#22c55e',
@@ -200,7 +198,13 @@ const openAdd = ref(false)
 const loading = ref(false)
 const error = ref('')
 const spendingsRaw = ref([])
-
+watch(
+  () => user.value?.uid,
+  (uid) => {
+    if (uid) loadSpendings(uid)
+  },
+  { immediate: true }
+)
 function goAll() {
   router.push('/myspendings')
 }
@@ -271,6 +275,7 @@ const spendingsByRange = computed(() => {
 })
 
 async function loadSpendings(uid) {
+  hasLoaded.value = false
   loading.value = true
   error.value = ''
   try {
@@ -285,6 +290,7 @@ async function loadSpendings(uid) {
     error.value = e?.message || 'Failed to load spendings'
   } finally {
     loading.value = false
+    hasLoaded.value = true
   }
 }
 
@@ -325,7 +331,13 @@ async function ensureRates() {
   }
 }
 
+watchEffect(() => {
+  if (spendingsRaw.value.length) ensureRates()
+})
 
+watch(targetCurrency, () => {
+  if (spendingsRaw.value.length) ensureRates()
+})
 
 function convertToTarget(amount, fromCur) {
   const from = (fromCur || 'KZT').toUpperCase()
@@ -338,7 +350,6 @@ function convertToTarget(amount, fromCur) {
 
   return Number(amount || 0) / r
 }
-
 
 const spendingsConverted = computed(() =>
   spendingsByRange.value.map(s => ({
@@ -356,15 +367,6 @@ const totalsByCategory = computed(() => {
   return map
 })
 
-const latestExpenses = computed(() => spendingsConverted.value.slice(0, 3))
-
-const totalLabel = computed(() => {
-  if (ratesLoading.value) return 'Total: loading rates...'
-  if (ratesError.value) return 'Total: rates error'
-  return `Total: ${formatMoney(totalSum.value, targetCurrency.value)}`
-})
-
-
 const totalSum = computed(() => {
   let t = 0
   for (const v of totalsByCategory.value.values()) t += v
@@ -372,8 +374,6 @@ const totalSum = computed(() => {
 })
 
 const chartReady = computed(() => totalSum.value > 0 && totalsByCategory.value.size > 0)
-
-const colors = ['#fb923c', '#22c55e', '#38bdf8', '#fb7185', '#a78bfa', '#94a3b8']
 
 const chartData = computed(() => {
   const labels = Array.from(totalsByCategory.value.keys())
@@ -383,7 +383,6 @@ const chartData = computed(() => {
     datasets: [{ data, backgroundColor: labels.map(colorForCategory), borderWidth: 0 }]
   }
 })
-
 
 const chartOptions = computed(() => ({
   responsive: true,
@@ -406,12 +405,11 @@ const legendRows = computed(() => {
   })
 })
 
+const latestExpenses = computed(() => spendingsConverted.value.slice(0, 3))
 
-watchEffect(() => {
-  if (spendingsRaw.value.length) ensureRates()
-})
-
-watch(targetCurrency, () => {
-  if (spendingsRaw.value.length) ensureRates()
+const totalLabel = computed(() => {
+  if (ratesLoading.value) return 'Total: loading rates...'
+  if (ratesError.value) return 'Total: rates error'
+  return `Total: ${formatMoney(totalSum.value, targetCurrency.value)}`
 })
 </script>
