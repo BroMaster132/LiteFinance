@@ -148,6 +148,7 @@ import { useRouter } from 'vue-router'
 import AddExpenses from '@/components/AddExpenses.vue'
 const { user } = useUser()
 const { initAuthListener } = useUser()
+
 initAuthListener()
 
 watch(
@@ -158,7 +159,32 @@ watch(
   { immediate: true }
 )
 const router = useRouter()
+const categoryColors = {
+  Food: '#fb923c',
+  Transport: '#22c55e',
+  Bills: '#38bdf8',
+  Shopping: '#a78bfa',
+  Entertainment: '#fb7185',
+  Other: '#94a3b8'
+}
 
+function normalizeCategory(label) {
+  return (label || 'Other').trim()
+}
+
+function hashColorKey(s) {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return h
+}
+
+const fallbackPalette = ['#fb923c', '#22c55e', '#38bdf8', '#fb7185', '#a78bfa', '#94a3b8']
+
+function colorForCategory(label) {
+  const key = normalizeCategory(label)
+  if (categoryColors[key]) return categoryColors[key]
+  return fallbackPalette[hashColorKey(key) % fallbackPalette.length]
+}
 
 const rangeOptions = [
   { label: 'Day', value: 'day' },
@@ -354,9 +380,10 @@ const chartData = computed(() => {
   const data = Array.from(totalsByCategory.value.values())
   return {
     labels,
-    datasets: [{ data, backgroundColor: labels.map((_, i) => colors[i % colors.length]), borderWidth: 0 }]
+    datasets: [{ data, backgroundColor: labels.map(colorForCategory), borderWidth: 0 }]
   }
 })
+
 
 const chartOptions = computed(() => ({
   responsive: true,
@@ -375,9 +402,10 @@ const legendRows = computed(() => {
   return labels.map((label, i) => {
     const value = vals[i] || 0
     const percent = Math.round((value / sum) * 1000) / 10
-    return { label, value, percent, color: colors[i % colors.length] }
+    return { label, value, percent, color: colorForCategory(label) }
   })
 })
+
 
 watchEffect(() => {
   if (spendingsRaw.value.length) ensureRates()
