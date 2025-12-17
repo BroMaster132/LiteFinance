@@ -26,7 +26,7 @@
 
           <Divider><span class="auth-or">OR</span></Divider>
           <div class="auth-social-row">
-            <img  src="../components/icons/google.png"  @click="googleRegister"  alt="google"  class="auth-social-icon"/>
+            <img  src="../components/icons/google.png"  @click="loginGoogle"  alt="google"  class="auth-social-icon"/>
             <img src="../components/icons/apple.png" alt="apple" class="auth-social-icon"/>
             <img src="../components/icons/facebook.png" alt="facebook" class="auth-social-icon"/>
           </div>
@@ -92,13 +92,34 @@ import { Form } from '@primevue/forms';
 import Message from 'primevue/message';
 
 const toast = useToast();
-const { user, googleLogout, googleRegister, createUser, loginUser } = useUser()
+const { user, googleRegister, createUser, loginUser } = useUser()
 
 
 const visible = ref(false);
 const visible1 = ref(false);
 
+const loginGoogle = async () => {
+  try {
+    await googleRegister();
 
+    visible.value = false;
+
+    toast.add({
+      severity: "success",
+      summary: "Success",
+      detail: "Successfully logged in with Google",
+      life: 3000
+    });
+
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Google login error",
+      detail: error.message || "Unknown error",
+      life: 3000
+    });
+  }
+};
 const register = async (email, password) => {
   try {
     await createUser(email, password);
