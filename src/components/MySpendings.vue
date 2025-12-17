@@ -113,7 +113,7 @@
       </div>
     </div>
 
-    <Dialog v-model:visible="editOpen" modal header="Edit spending" :style="{ width: '28rem' }">
+    <Dialog appendTo="self" v-model:visible="editOpen" modal header="Edit spending" :style="{ width: '28rem' }">
       <div class="flex flex-col gap-3">
         <div class="flex flex-col gap-2">
           <label class="text-sm">Category</label>
@@ -151,8 +151,8 @@
       </div>
     </Dialog>
 
-    <Dialog v-model:visible="deleteOpen" modal header="Delete spending?" :style="{ width: '24rem' }">
-      <div class="text-sm text-slate-700">
+    <Dialog appendTo="self" v-model:visible="deleteOpen" modal header="Delete spending?" :style="{ width: '24rem' }">
+      <div class="text-sm text-slate-600">
         This will permanently delete this record.
       </div>
 
@@ -414,4 +414,32 @@ async function confirmDelete() {
   background: #ffffff;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
+:deep(.p-dialog) {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+:deep(.p-dialog .p-dialog-header),
+:deep(.p-dialog .p-dialog-content),
+:deep(.p-dialog .p-dialog-footer) {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+:deep(.p-dialog .p-dialog-header) {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+:deep(.p-dialog .p-dialog-footer) {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+:deep(.p-dialog .p-dialog-header-icon) {
+  color: #475569;
+}
+
+:deep(.p-dialog .p-dialog-header-icon:hover) {
+  background: rgba(15, 23, 42, 0.06);
+}
+
 </style>
