@@ -1,6 +1,22 @@
 <template>
   <!-- Button that opens drawer (for example) -->
-  <Button icon="pi pi-user" rounded @click="visibleRight = true" />
+  <Button class="p-button-text p-button-rounded avatar-btn" aria-label="Account" @click="visibleRight = true">
+    <template #icon>
+      <img
+        v-if="avatarUrl"
+        :src="avatarUrl"
+        :alt="avatarAlt"
+        class="h-8 w-8 rounded-full object-cover ring-1 ring-black/10"
+        referrerpolicy="no-referrer"
+      />
+      <span
+        v-else
+        class="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700 ring-1 ring-black/10"
+      >
+        U
+      </span>
+    </template>
+  </Button>
 
   <Drawer v-model:visible="visibleRight" position="right" :modal="true" :showCloseIcon="false" class="profile-drawer">
     <div class="sidebar">
@@ -37,7 +53,8 @@ import Drawer from 'primevue/drawer'
 import Button from 'primevue/button'
 import { useUser } from '@/composables/useUser';
 const { user, googleLogout } = useUser();
-
+const avatarUrl = ref(user.value.photoURL || null)
+const avatarAlt = ref(user.value.displayName || 'User Avatar')
 const visibleRight = ref(false)
 </script>
 
